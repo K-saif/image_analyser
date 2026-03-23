@@ -1,7 +1,6 @@
 import torch
 from transformers import AutoProcessor, LlavaForConditionalGeneration, BitsAndBytesConfig
 from PIL import Image
-import requests
 
 # ------------------ CONFIG ------------------
 model_id = "llava-hf/llava-1.5-7b-hf"
@@ -28,52 +27,55 @@ processor = AutoProcessor.from_pretrained(model_id)
 
 print("Model loaded ✅")
 
-from PIL import Image
-import requests
-
 # ------------------ LOAD IMAGE ------------------
-image_url = "https://www.ilankelman.org/stopsigns/australia.jpg"
-image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
+image_path = r"C:\Users\khans\OneDrive\Documents\image_analyser\runs\detect\predict3\5.jpg"
+image = Image.open(image_path).convert("RGB")
 
-# ------------------ PROMPT ------------------
-prompt = "can you see a women in this image? if so, what is she doing? and where is she located in the image?"
+# ------------------ CHAT LOOP ------------------
+print("\n💬 Ask questions about the image (type 'exit' to quit)\n")
 
-conversation = [
-    {
-        "role": "user",
-        "content": [
-            {"type": "image"},
-            {"type": "text", "text": prompt},
-        ],
-    },
-]
+while True:
+    prompt = input("You: ")
 
-# ------------------ PROCESS INPUT ------------------
-inputs = processor(
-    text=processor.apply_chat_template(conversation, add_generation_prompt=True),
-    images=image,
-    return_tensors="pt"
-)
+    if prompt.lower() in ["exit", "quit"]:
+        print("Exiting...")
+        break
 
-inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    # conversation with image token
+    conversation = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": prompt},
+            ],
+        },
+    ]
 
-# ------------------ GENERATE ------------------
-with torch.no_grad():
-    output = model.generate(
-        **inputs,
-        max_new_tokens=150,
-        do_sample=True,
-        temperature=0.7
+    # process input
+    inputs = processor(
+        text=processor.apply_chat_template(conversation, add_generation_prompt=True),
+        images=image,
+        return_tensors="pt"
     )
 
-# ------------------ DECODE ------------------
-result = processor.decode(output[0], skip_special_tokens=True)
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
-print("\n🧠 Model Output:\n")
-print(result)
+    # inference
+    with torch.no_grad():
+        output = model.generate(
+            **inputs,
+            max_new_tokens=150,
+            do_sample=True,
+            temperature=0.7
+        )
 
-# import torch
+    # decode
+    result = processor.decode(output[0], skip_special_tokens=True)
 
-# print("CUDA available:", torch.cuda.is_available())
-# print("CUDA device count:", torch.cuda.device_count())
-# print("Device name:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "No GPU")
+    # clean response (remove USER/ASSISTANT if present)
+    if "ASSISTANT:" in result:
+        result = result.split("ASSISTANT:")[-1].strip()
+
+    print(f"\n🤖: {result}\n")
+
