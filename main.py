@@ -36,12 +36,13 @@ image_url = "https://www.ilankelman.org/stopsigns/australia.jpg"
 image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
 
 # ------------------ PROMPT ------------------
-prompt = "What is shown in this image? Be specific."
+prompt = "can you see a women in this image? if so, what is she doing? and where is she located in the image?"
 
 conversation = [
     {
         "role": "user",
         "content": [
+            {"type": "image"},
             {"type": "text", "text": prompt},
         ],
     },
